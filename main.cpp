@@ -156,20 +156,12 @@ mat NeuralNetwork::backpropagate(mat error){
 
 	for (auto &&layer = m_Layers.rbegin(); layer != m_Layers.rend(); ++layer) {
 
-		// cout << "Error matrix " << endl << error << endl; 
-		// cout << "Input matrix " << endl << layer->getInput() << endl;
-		// cout << "Output matrix " << endl << layer->getOutput() << endl;
-		// cout << "Weight matrix" << endl << layer->getWeights() << endl;
-
-		delta =  m_learningRate * error * layer->getOutput().transform(m_activationDerivative);
-		// cout << "Delta matrix before matrix mult with input transposed" << endl << delta << endl;
-		layer->adjustBiases(delta);
-		delta = delta * layer->getInput().t();
-		// cout << "Delta matrix after matrix mult with input transposed" << endl << delta << endl;
+		delta = error % layer->getOutput().transform(m_activationDerivative);
+		delta = m_learningRate * ( delta * layer->getInput().t() );
 		layer->adjustWeights(delta);
+		layer->adjustBiases( m_learningRate * error  );
+		error = layer->getWeights().t() * error;
 
-		error *= layer->getWeights();
-		error  = error.t() * delta;
 	}
 	return error;
 
@@ -219,7 +211,7 @@ void AutoEncoder::train(const vector<mat> &inputs, const vector<mat> &outputs){
 
 			// exit(0);
 
-			decoderErrorMatrix = m_decoder.backpropagate(decoderOutputMatrix, outputs[i]);
+			decoderErrorMatrix = m_decoder.backpropagate(decoderOutputMatrix, inputs[i]);
 
 			// cout << "backpropagate on encoder" << endl;
 
@@ -302,19 +294,21 @@ int main(int argc, char const *argv[]){
 	outputs.push_back({ 0 });
 
 	inputMatrix = { {0 , 1} };
-	uniform_int_distribution<mt19937::result_type> dist(0,inputs.size() - 1);
+	uniform_int_distribution<mt19937::result_type> distr(0, inputs.size() -1);
 
 	int num;
-	NeuralNetwork test = {2, 5, 10, 0.5, 1, sigmoid, sigmoidPrime};
+	// NeuralNetwork test = {2, 5, 10, 0.5, 1, sigmoid, sigmoidPrime};
+	NeuralNetwork test = {2, 1, 100, 0.5, 1, sigmoid, sigmoidPrime};
+
 	// int inputNodes, int hiddenLayers, int hiddenNodes, float learningRate, int outputNodes
 	cout << "[" << endl;
-	for(int j = 0; j < 10000; ++j){
-		num = dist(rng);
+	for(int j = 0; j < 1000; ++j){
+		num = distr(rng);
 		outputXD = test.output(inputs[ num ]);
 		// cout << "Input " <<  num << " Expected Output " << outputs[ num ];
 		// cout << "Actual " << outputXD << endl;
-		cout << "(" << num << "," << (outputXD - outputs[ num ])  << ")," << endl;
-		test.backpropagate(outputXD/inputs.size(), outputs[ num ]/inputs.size());
+		cout << "(" << num << "," << abs(outputXD - outputs[ num ])  << ")," << endl;
+		test.backpropagate(outputXD, outputs[ num ]);
 
 	}
 	cout << "]" << endl;
@@ -327,7 +321,7 @@ int main(int argc, char const *argv[]){
 	// NeuralNetwork encoder = AE.getEncoder();
 	// NeuralNetwork decoder = AE.getDecoder();
 	// cout << encoder.output(inputMatrix) << endl;
-	// cout << decoder.output(encoder.output(inputMatrix)) << endl;
-	// return 0;
+	cout << decoder.output(encoder.output(inputMatrix)) << endl;
+	return 0;
 }
 
