@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <ctime>
 #include <random>
+#include <fstream>
 
 
 using namespace std;
@@ -116,6 +117,7 @@ private:
 public:
 	NeuralNetwork() = default;
 	NeuralNetwork(int inputNodes, int hiddenLayers, int hiddenNodes, float learningRate, int outputNodes, ActivationFn activation, ActivationDerivativeFn activationDerivative);
+	void train(vector<mat> inputs, vector<mat>  outputs, int iterations);
 	mat backpropagate(mat errorMatrix);
 	mat backpropagate(mat output, mat expectedOutput);
 	mat output(mat inputMatrix){ return feedforward(inputMatrix); };
@@ -172,6 +174,35 @@ mat NeuralNetwork::backpropagate( mat output, mat expectedOutput ){
 	return backpropagate(expectedOutput - output);
 }
 
+void NeuralNetwork::train(vector<mat> inputs, vector<mat>  outputs, int iterations){
+	if(iterations < 0){
+		throw "Cannot have negative number of iterations";
+	}
+
+	if(inputs.size() != outputs.size()){
+		throw "The number of entries in the train input matrix differs from that in the train output matrix";
+	}
+
+	ofstream plot;
+	plot.open("plotData_.txt");
+	random_device dev;
+    mt19937 rng(dev());
+	uniform_int_distribution<mt19937::result_type> distr(0, inputs.size() -1);
+
+	mat outputXD;
+
+	plot << "[";
+
+	for (int j = 0; j < iterations; ++j)
+	{
+		int num = distr(rng);
+		outputXD = feedforward(inputs[ num ]);
+		plot << "(" << num << "," << abs(outputXD - outputs[ num ])  << ")," << endl;
+		backpropagate(outputXD, outputs[ num ]);
+	}
+	plot << "]";
+	plot.close();
+}
 
 class AutoEncoder{
 
@@ -232,96 +263,38 @@ const NeuralNetwork & AutoEncoder::getDecoder() const{
 	throw "Cannot get decoder object when training has not taken place";
 }
 
-class MinkowskiDistance{
 
-// (the sum | Xi - Yi |^p)^(1/p)
-private:
-	int m_power;
-public:
-	MinkowskiDistance(int power);
-	double distance(mat x1, mat x2);
-
-};
-
-MinkowskiDistance::MinkowskiDistance(int power){
-	m_power = power;
-}
-
-double MinkowskiDistance::distance(mat x1, mat x2){
-	if(x1.size() != x2.size()) throw "The vector sizes are not the same";
-	return 1.0;
-};
-
-class Eugenicist
-{
-public:
-	Eugenicist();
-	~Eugenicist();
-	
-};
 int main(int argc, char const *argv[]){
-
-    random_device dev;
-    mt19937 rng(dev());
-
 	vector<mat> inputs;
 	vector<mat> outputs;
 
 	mat inputMatrix;
 	mat outputMatrix;
-	// for(int i = 0; i < 100; i++){
-
-	// 	inputMatrix = mat(1, 1);
-	// 	outputMatrix = mat(1, 1);
-
-	// 	inputMatrix.ones(1,1);
-	// 	outputMatrix.ones(1,1);
-
-	// 	inputs.push_back(inputMatrix);
-	// 	outputs.push_back(outputMatrix);
-	// }
-
-	mat outputXD;
 
 	inputs.push_back({ {0 , 0} });
 	outputs.push_back({ 0 });
 	inputs.push_back({ {0 , 1} });
-	outputs.push_back({ 1 });
-	// inputs.push_back({ {1 , 0} });
-	// outputs.push_back({ 1 });
-
-	inputs.push_back({ {1 , 1} });
 	outputs.push_back({ 0 });
+	// inputs.push_back({ {1 , 1} });
+	// outputs.push_back({ 0 });
+	inputs.push_back({ {1 , 0} });
+	outputs.push_back({ 1 });
 
-	inputMatrix = { {0 , 1} };
-	uniform_int_distribution<mt19937::result_type> distr(0, inputs.size() -1);
-
-	int num;
-	// NeuralNetwork test = {2, 5, 10, 0.5, 1, sigmoid, sigmoidPrime};
-	NeuralNetwork test = {2, 1, 100, 0.5, 1, sigmoid, sigmoidPrime};
+	inputMatrix = { {1 , 1} };
 
 	// int inputNodes, int hiddenLayers, int hiddenNodes, float learningRate, int outputNodes
-	cout << "[" << endl;
-	for(int j = 0; j < 1000; ++j){
-		num = distr(rng);
-		outputXD = test.output(inputs[ num ]);
-		// cout << "Input " <<  num << " Expected Output " << outputs[ num ];
-		// cout << "Actual " << outputXD << endl;
-		cout << "(" << num << "," << abs(outputXD - outputs[ num ])  << ")," << endl;
-		test.backpropagate(outputXD, outputs[ num ]);
+	NeuralNetwork test = {2, 3, 10, 0.05, 1, tanh, sech2};
 
-	}
-	cout << "]" << endl;
-	// cout << test.output(inputMatrix) << endl;
-	// inputMatrix = { {0 , 0} };
-	// cout << test.output(inputMatrix) << endl;
+	test.train(inputs, outputs, 1000);
+	cout << test.output(inputMatrix) << endl;
+
 	// AutoEncoder AE(2, 1, 0.01, 2, tanh, sech2);
 	// AE.train(inputs, outputs);
 
 	// NeuralNetwork encoder = AE.getEncoder();
 	// NeuralNetwork decoder = AE.getDecoder();
 	// cout << encoder.output(inputMatrix) << endl;
-	cout << decoder.output(encoder.output(inputMatrix)) << endl;
+	// cout << decoder.output(encoder.output(inputMatrix)) << endl;
 	return 0;
 }
 
